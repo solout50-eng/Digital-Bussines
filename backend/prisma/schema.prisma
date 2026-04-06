@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  business   Business?
+
+  @@index([email])
+}
+
+model Business {
+  id                   String            @id @default(cuid())
+  name                 String
+  country              String            @default("MX")
+  plan                 String            @default("basic") // basic | pro | enterprise
+  subscriptionStatus   String            @default("trial") // trial | active | past_due | cancelled
+  stripeCustomerId     String?           @unique
+  stripeSubscriptionId String?           @unique
+  trialEndsAt          DateTime?
+  chatbotPrompt        String?           @db.Text
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  userId               String            @unique
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clients              Client[]
+  invoices             Invoice[]
+  products             Product[]
+  aiConversations      AiConversation[]
+  campaigns            Campaign[]
+
+  @@index([userId])
+}
+
+model Client {
+  id         String    @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  address    String?
+  taxId      String?
+  notes      String?   @db.Text
+  tags       String[]  @default([])
+  totalSpent Float     @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoices   Invoice[]
+
+  @@index([businessId])
+  @@index([email])
+}
+
+model Invoice {
+  id         String        @id @default(cuid())
+  number     String
+  status     String        @default("draft") // draft | sent | paid | overdue | cancelled
+  subtotal   Float
+  tax        Float         @default(0)
+  total      Float
+  currency   String        @default("MXN")
+  notes      String?
+  dueDate    DateTime?
+  paidAt     DateTime?
+  items      Json          // Array of { description, quantity, unitPrice, total }
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  businessId String
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client        @relation(fields: [clientId], references: [id])
+
+  @@unique([businessId, number])
+  @@index([businessId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model Product {
+  id           String    @id @default(cuid())
+  name         String
+  sku          String?
+  description  String?
+  price        Float
+  cost         Float     @default(0)
+  stock        Int       @default(0)
+  minStock     Int       @default(5)
+  stockValue   Float     @default(0)
+  category     String?
+  imageUrl     String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([sku])
+}
+
+model AiConversation {
+  id         String    @id @default(cuid())
+  channel    String    @default("web") // web | whatsapp | instagram
+  messages   Json      // Array of { role, content, timestamp }
+  resolved   Boolean   @default(false)
+  leadEmail  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  type        String    // email | whatsapp | sms | instagram | facebook
+  status      String    @default("draft") // draft | scheduled | sent | completed
+  subject     String?
+  body        String    @db.Text
+  sentAt      DateTime?
+  scheduledAt DateTime?
+  recipients  Int       @default(0)
+  opened      Int       @default(0)
+  clicked     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
