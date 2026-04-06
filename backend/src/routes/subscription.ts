@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import express, { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
 import { PrismaClient } from '@prisma/client'
 import { authenticate, AuthenticatedRequest } from '../middleware/auth'
@@ -161,7 +161,73 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: R
   res.json({ received: true })
 })
 
-// Need to import express for raw body parsing in webhook
-import express from 'express'
+// GET /api/subscriptions/current — get current subscription status
+router.get('/current', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const business = await prisma.business.findUnique({
+      where: { id: req.user!.businessId },
+      select: {
+        plan: true,
+        subscriptionStatus: true,
+        trialEndsAt: true,
+        stripeSubscriptionId: true,
+      },
+    })
+
+    if (!business) {
+      return res.status(404).json({ error: 'Negocio no encontrado' })
+    }
+
+    let stripeSubscription = null
+    if (business.stripeSubscriptionId) {
+      try {
+        stripeSubscription = await stripe.subscriptions.retrieve(business.stripeSubscriptionId)
+      } catch {
+        // Subscription not found in Stripe — ignore
+      }
+    }
+
+    res.json({
+      plan: business.plan,
+      status: business.subscriptionStatus,
+      trialEndsAt: business.trialEndsAt,
+      currentPeriodEnd: stripeSubscription
+        ? new Date((stripeSubscription as Stripe.Subscription & { current_period_end: number }).current_period_end * 1000)
+        : null,
+    })
+  } catch (error) {
+    console.error('Subscription status error:', error)
+    res.status(500).json({ error: 'Error al obtener estado de suscripción' })
+  }
+})
+
+// POST /api/subscriptions/cancel — cancel subscription
+router.post('/cancel', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const business = await prisma.business.findUnique({
+      where: { id: req.user!.businessId },
+      select: { stripeSubscriptionId: true },
+    })
+
+    if (!business?.stripeSubscriptionId) {
+      return res.status(400).json({ error: 'No tienes una suscripción activa para cancelar' })
+    }
+
+    // Cancel at period end (not immediately)
+    await stripe.subscriptions.update(business.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    })
+
+    await prisma.business.update({
+      where: { id: req.user!.businessId },
+      data: { subscriptionStatus: 'cancelling' },
+    })
+
+    res.json({ message: 'Suscripción cancelada. Tendrás acceso hasta el final del período de facturación.' })
+  } catch (error) {
+    console.error('Cancel subscription error:', error)
+    res.status(500).json({ error: 'Error al cancelar la suscripción' })
+  }
+})
 
 export default router
