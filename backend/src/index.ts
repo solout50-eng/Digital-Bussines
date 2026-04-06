@@ -9,6 +9,11 @@ import authRoutes from './routes/auth'
 import subscriptionRoutes from './routes/subscription'
 import aiRoutes from './routes/ai'
 import businessRoutes from './routes/business'
+import clientRoutes from './routes/clients'
+import invoiceRoutes from './routes/invoices'
+import inventoryRoutes from './routes/inventory'
+import campaignRoutes from './routes/campaigns'
+import analyticsRoutes from './routes/analytics'
 
 dotenv.config()
 
@@ -52,6 +57,11 @@ app.use('/api/auth', authRoutes)
 app.use('/api/subscriptions', subscriptionRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/business', businessRoutes)
+app.use('/api/clients', clientRoutes)
+app.use('/api/invoices', invoiceRoutes)
+app.use('/api/inventory', inventoryRoutes)
+app.use('/api/campaigns', campaignRoutes)
+app.use('/api/analytics', analyticsRoutes)
 
 // 404 handler
 app.use((_req, res) => {

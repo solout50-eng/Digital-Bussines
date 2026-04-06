@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['images.unsplash.com', 'avatars.githubusercontent.com'],
+    domains: ['images.unsplash.com', 'avatars.githubusercontent.com', 'res.cloudinary.com', 'negociosmart-uploads.s3.amazonaws.com'],
     formats: ['image/avif', 'image/webp'],
   },
   env: {
