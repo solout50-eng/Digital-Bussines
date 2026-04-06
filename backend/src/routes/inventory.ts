@@ -10,7 +10,7 @@ router.get('/stats', authenticate, async (req: AuthenticatedRequest, res: Respon
   try {
     const businessId = req.user!.businessId
 
-    const [products, categories, lowStockCount] = await Promise.all([
+    const [products, categories] = await Promise.all([
       prisma.product.findMany({
         where: { businessId, isActive: true },
         select: { stockValue: true, category: true, stock: true, minStock: true },
@@ -19,13 +19,6 @@ router.get('/stats', authenticate, async (req: AuthenticatedRequest, res: Respon
         where: { businessId, isActive: true, category: { not: null } },
         select: { category: true },
         distinct: ['category'],
-      }),
-      prisma.product.count({
-        where: {
-          businessId,
-          isActive: true,
-          stock: { lte: prisma.product.fields.minStock },
-        },
       }),
     ])
 
